@@ -29,7 +29,7 @@ class CourseContent {
       const result = await executeQuery(
         `INSERT INTO course_content 
          (course_id, title, description, content_type, video_url, video_public_id, video_duration, document_url, duration, display_order, is_published) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           course_id, 
           title.trim(), 
@@ -45,10 +45,10 @@ class CourseContent {
         ]
       );
 
-      console.log('Course content created with ID:', result.insertId);
+      console.log('Course content created with ID:', result[0].id);
 
       return { 
-        id: result.insertId,
+        id: result[0].id,
         course_id,
         title: title.trim(),
         description: description?.trim(),
@@ -89,7 +89,7 @@ class CourseContent {
           created_at,
           updated_at
         FROM course_content 
-        WHERE course_id = ?
+        WHERE course_id = $1
         ORDER BY display_order ASC, created_at ASC
       `, [courseId]);
       
@@ -121,7 +121,7 @@ class CourseContent {
           created_at,
           updated_at
         FROM course_content 
-        WHERE course_id = ? AND is_published = TRUE
+        WHERE course_id = $1 AND is_published = TRUE
         ORDER BY display_order ASC, created_at ASC
       `, [courseId]);
       
@@ -142,7 +142,7 @@ class CourseContent {
           cc.display_order as order_index
         FROM course_content cc
         JOIN courses c ON cc.course_id = c.id
-        WHERE cc.id = ?
+        WHERE cc.id = $1
       `, [contentId]);
       
       const content = rows[0] || null;
@@ -182,43 +182,43 @@ class CourseContent {
       const updateValues = [];
 
       if (title !== undefined) {
-        updateFields.push('title = ?');
+        updateFields.push('title = $' + (updateValues.length + 1));
         updateValues.push(title.trim());
       }
       if (description !== undefined) {
-        updateFields.push('description = ?');
+        updateFields.push('description = $' + (updateValues.length + 1));
         updateValues.push(description?.trim());
       }
       if (content_type !== undefined) {
-        updateFields.push('content_type = ?');
+        updateFields.push('content_type = $' + (updateValues.length + 1));
         updateValues.push(content_type);
       }
       if (video_url !== undefined) {
-        updateFields.push('video_url = ?');
+        updateFields.push('video_url = $' + (updateValues.length + 1));
         updateValues.push(video_url);
       }
       if (video_public_id !== undefined) {
-        updateFields.push('video_public_id = ?');
+        updateFields.push('video_public_id = $' + (updateValues.length + 1));
         updateValues.push(video_public_id);
       }
       if (video_duration !== undefined) {
-        updateFields.push('video_duration = ?');
+        updateFields.push('video_duration = $' + (updateValues.length + 1));
         updateValues.push(video_duration);
       }
       if (document_url !== undefined) {
-        updateFields.push('document_url = ?');
+        updateFields.push('document_url = $' + (updateValues.length + 1));
         updateValues.push(document_url);
       }
       if (duration !== undefined) {
-        updateFields.push('duration = ?');
+        updateFields.push('duration = $' + (updateValues.length + 1));
         updateValues.push(duration);
       }
       if (order_index !== undefined) {
-        updateFields.push('display_order = ?');
+        updateFields.push('display_order = $' + (updateValues.length + 1));
         updateValues.push(order_index);
       }
       if (is_published !== undefined) {
-        updateFields.push('is_published = ?');
+        updateFields.push('is_published = $' + (updateValues.length + 1));
         updateValues.push(is_published);
       }
 
@@ -229,16 +229,16 @@ class CourseContent {
       updateFields.push('updated_at = NOW()');
       updateValues.push(contentId);
 
-      const query = `UPDATE course_content SET ${updateFields.join(', ')} WHERE id = ?`;
+      const query = `UPDATE course_content SET ${updateFields.join(', ')} WHERE id = $${updateValues.length}`;
       
       const result = await executeQuery(query, updateValues);
 
       console.log(`Updated content ${contentId}:`, {
-        affectedRows: result.affectedRows,
+        rowCount: result.rowCount,
         updatedFields: updateFields
       });
 
-      return result.affectedRows > 0;
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Course content update error:', error);
       throw error;
@@ -251,19 +251,19 @@ class CourseContent {
       const content = await this.findById(contentId);
       
       const result = await executeQuery(
-        'DELETE FROM course_content WHERE id = ?',
+        'DELETE FROM course_content WHERE id = $1',
         [contentId]
       );
 
       console.log(`Deleted content ${contentId}:`, {
-        affectedRows: result.affectedRows,
+        rowCount: result.rowCount,
         wasVideo: content?.content_type === 'video',
         hadPublicId: !!content?.video_public_id
       });
 
       // Return both deletion result and content info for cleanup
       return {
-        success: result.affectedRows > 0,
+        success: result.rowCount > 0,
         content: content
       };
     } catch (error) {
@@ -278,7 +278,7 @@ class CourseContent {
         SELECT cc.id 
         FROM course_content cc
         JOIN courses c ON cc.course_id = c.id
-        WHERE cc.id = ? AND c.teacher_id = ?
+        WHERE cc.id = $1 AND c.teacher_id = $2
       `, [contentId, teacherId]);
       
       const hasOwnership = rows.length > 0;
@@ -307,7 +307,7 @@ class CourseContent {
           is_published,
           created_at
         FROM course_content 
-        WHERE course_id = ? AND content_type = 'video'
+        WHERE course_id = $1 AND content_type = 'video'
         ORDER BY display_order ASC, created_at ASC
       `, [courseId]);
       
@@ -326,19 +326,19 @@ class CourseContent {
       
       const result = await executeQuery(
         `UPDATE course_content 
-         SET video_url = ?, video_public_id = ?, video_duration = ?, updated_at = NOW()
-         WHERE id = ? AND content_type = 'video'`,
+         SET video_url = $1, video_public_id = $2, video_duration = $3, updated_at = NOW()
+         WHERE id = $4 AND content_type = 'video'`,
         [video_url, video_public_id, video_duration, contentId]
       );
 
       console.log(`Updated video info for content ${contentId}:`, {
-        affectedRows: result.affectedRows,
+        rowCount: result.rowCount,
         video_url: !!video_url,
         video_public_id: !!video_public_id,
         video_duration: video_duration
       });
 
-      return result.affectedRows > 0;
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Update video info error:', error);
       throw error;
@@ -356,7 +356,7 @@ class CourseContent {
           cc.display_order as order_index
         FROM course_content cc
         JOIN courses c ON cc.course_id = c.id
-        WHERE cc.course_id = ? AND (cc.content_type = 'video' OR cc.video_url IS NOT NULL)
+        WHERE cc.course_id = $1 AND (cc.content_type = 'video' OR cc.video_url IS NOT NULL)
         ORDER BY cc.display_order ASC
       `, [courseId]);
       
@@ -371,11 +371,11 @@ class CourseContent {
   static async updateContentOrder(contentId, orderIndex) {
     try {
       const result = await executeQuery(
-        'UPDATE course_content SET display_order = ?, updated_at = NOW() WHERE id = ?',
+        'UPDATE course_content SET display_order = $1, updated_at = NOW() WHERE id = $2',
         [orderIndex, contentId]
       );
 
-      return result.affectedRows > 0;
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Update content order error:', error);
       throw error;
@@ -391,7 +391,7 @@ class CourseContent {
           COUNT(*) as count,
           SUM(CASE WHEN content_type = 'video' THEN video_duration ELSE 0 END) as total_video_duration
         FROM course_content 
-        WHERE course_id = ? AND is_published = TRUE
+        WHERE course_id = $1 AND is_published = TRUE
         GROUP BY content_type
       `, [courseId]);
       

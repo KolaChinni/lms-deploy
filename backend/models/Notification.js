@@ -12,12 +12,12 @@ class Notification {
       const result = await executeQuery(
         `INSERT INTO notifications 
          (user_id, title, message, type, related_entity, related_entity_id, created_at) 
-         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
         [user_id, title.trim(), message.trim(), type || 'info', related_entity, related_entity_id]
       );
 
       return { 
-        id: result.insertId,
+        id: result[0].id,
         user_id,
         title: title.trim(),
         message: message.trim(),
@@ -37,9 +37,9 @@ class Notification {
     try {
       const rows = await executeQuery(`
         SELECT * FROM notifications 
-        WHERE user_id = ? 
+        WHERE user_id = $1 
         ORDER BY created_at DESC 
-        LIMIT ?
+        LIMIT $2
       `, [userId, limit]);
 
       return rows;
@@ -52,10 +52,10 @@ class Notification {
   static async markAsRead(notificationId, userId) {
     try {
       const result = await executeQuery(
-        'UPDATE notifications SET is_read = TRUE, read_at = NOW() WHERE id = ? AND user_id = ?',
+        'UPDATE notifications SET is_read = TRUE, read_at = NOW() WHERE id = $1 AND user_id = $2',
         [notificationId, userId]
       );
-      return result.affectedRows > 0;
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Mark notification as read error:', error);
       throw error;
@@ -65,10 +65,10 @@ class Notification {
   static async markAllAsRead(userId) {
     try {
       const result = await executeQuery(
-        'UPDATE notifications SET is_read = TRUE, read_at = NOW() WHERE user_id = ? AND is_read = FALSE',
+        'UPDATE notifications SET is_read = TRUE, read_at = NOW() WHERE user_id = $1 AND is_read = FALSE',
         [userId]
       );
-      return result.affectedRows;
+      return result.rowCount;
     } catch (error) {
       console.error('Mark all notifications as read error:', error);
       throw error;
@@ -78,7 +78,7 @@ class Notification {
   static async getUnreadCount(userId) {
     try {
       const rows = await executeQuery(
-        'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND is_read = FALSE',
+        'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND is_read = FALSE',
         [userId]
       );
       return rows[0].count;
@@ -95,7 +95,7 @@ class Notification {
       const students = await executeQuery(`
         SELECT u.id FROM users u
         JOIN enrollments e ON u.id = e.student_id
-        WHERE e.course_id = ? AND u.role = 'student'
+        WHERE e.course_id = $1 AND u.role = 'student'
       `, [courseId]);
 
       // Create notifications for each student

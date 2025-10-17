@@ -10,6 +10,17 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// Add the missing executeQuery function
+const executeQuery = async (sql, params = []) => {
+  try {
+    const result = await pool.query(sql, params);
+    return result.rows;
+  } catch (error) {
+    console.error('Query execution error:', error);
+    throw error;
+  }
+};
+
 // Simple connection test
 const initDatabase = async () => {
   try {
@@ -23,4 +34,9 @@ const initDatabase = async () => {
   }
 };
 
-module.exports = { pool, initDatabase };
+// Export both pool and executeQuery
+module.exports = { 
+  pool, 
+  executeQuery,  // Add this
+  initDatabase 
+};

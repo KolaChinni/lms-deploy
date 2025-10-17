@@ -7,7 +7,7 @@ class StudentProgress {
       
       // Check if progress record exists
       const existing = await executeQuery(
-        'SELECT id FROM student_progress WHERE student_id = ? AND content_id = ?',
+        'SELECT id FROM student_progress WHERE student_id = $1 AND content_id = $2',
         [student_id, content_id]
       );
 
@@ -17,9 +17,9 @@ class StudentProgress {
         // Update existing progress
         const result = await executeQuery(
           `UPDATE student_progress 
-           SET progress_percentage = ?, last_position = ?, total_time_watched = ?,
-               is_completed = ?, last_accessed = NOW(), completed_at = ?
-           WHERE student_id = ? AND content_id = ?`,
+           SET progress_percentage = $1, last_position = $2, total_time_watched = $3,
+               is_completed = $4, last_accessed = NOW(), completed_at = $5
+           WHERE student_id = $6 AND content_id = $7`,
           [
             progress_percentage, 
             last_position, 
@@ -30,13 +30,13 @@ class StudentProgress {
             content_id
           ]
         );
-        return result.affectedRows > 0;
+        return result.rowCount > 0;
       } else {
         // Create new progress record
         const result = await executeQuery(
           `INSERT INTO student_progress 
            (student_id, course_id, content_id, progress_percentage, last_position, total_time_watched, is_completed, completed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
             student_id, 
             course_id, 
@@ -48,7 +48,7 @@ class StudentProgress {
             is_completed ? new Date() : null
           ]
         );
-        return result.insertId;
+        return result[0].id;
       }
     } catch (error) {
       console.error('Update progress error:', error);
@@ -67,7 +67,7 @@ class StudentProgress {
           cc.duration as content_duration
         FROM student_progress sp
         JOIN course_content cc ON sp.content_id = cc.id
-        WHERE sp.student_id = ? AND sp.course_id = ?
+        WHERE sp.student_id = $1 AND sp.course_id = $2
         ORDER BY cc.display_order ASC
       `, [studentId, courseId]);
       return rows;
@@ -86,8 +86,8 @@ class StudentProgress {
           SUM(CASE WHEN sp.is_completed = TRUE THEN 1 ELSE 0 END) as completed_content,
           AVG(sp.progress_percentage) as average_progress
         FROM course_content cc
-        LEFT JOIN student_progress sp ON cc.id = sp.content_id AND sp.student_id = ?
-        WHERE cc.course_id = ? AND cc.is_published = TRUE
+        LEFT JOIN student_progress sp ON cc.id = sp.content_id AND sp.student_id = $1
+        WHERE cc.course_id = $2 AND cc.is_published = TRUE
       `, [studentId, courseId]);
 
       const progress = progressRows[0];
@@ -119,8 +119,8 @@ class StudentProgress {
         FROM enrollments e
         JOIN courses c ON e.course_id = c.id
         LEFT JOIN course_content cc ON c.id = cc.course_id AND cc.is_published = TRUE
-        LEFT JOIN student_progress sp ON cc.id = sp.content_id AND sp.student_id = ?
-        WHERE e.student_id = ?
+        LEFT JOIN student_progress sp ON cc.id = sp.content_id AND sp.student_id = $1
+        WHERE e.student_id = $2
         GROUP BY c.id, c.title
       `, [studentId, studentId]);
 

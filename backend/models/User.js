@@ -16,13 +16,13 @@ class User {
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
       const result = await db.executeQuery(
-        'INSERT INTO users (name, email, password, role, is_verified, otp, otp_expiry) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO users (name, email, password, role, is_verified, otp, otp_expiry) VALUES ($1, $2, $3, $4, $5, $6, $7)',
         [name.trim(), email.toLowerCase().trim(), hashedPassword, role, false, null, null]
       );
 
       // Return user data without password
       return { 
-        id: result.insertId, 
+        id: result[0].id, 
         name: name.trim(), 
         email: email.toLowerCase().trim(), 
         role, 
@@ -31,8 +31,8 @@ class User {
     } catch (error) {
       console.error('User creation error:', error);
       
-      // Handle duplicate email error
-      if (error.code === 'ER_DUP_ENTRY') {
+      // Handle duplicate email error (PostgreSQL error code)
+      if (error.code === '23505') {
         throw new Error('User already exists with this email');
       }
       
@@ -43,7 +43,7 @@ class User {
   static async findByEmail(email) {
     try {
       const rows = await db.executeQuery(
-        'SELECT * FROM users WHERE email = ?',
+        'SELECT * FROM users WHERE email = $1',
         [email.toLowerCase().trim()]
       );
       return rows[0] || null;
@@ -56,7 +56,7 @@ class User {
   static async findById(id) {
     try {
       const rows = await db.executeQuery(
-        'SELECT id, name, email, role, is_verified, created_at, updated_at FROM users WHERE id = ?',
+        'SELECT id, name, email, role, is_verified, created_at, updated_at FROM users WHERE id = $1',
         [id]
       );
       return rows[0] || null;
@@ -78,7 +78,7 @@ class User {
   static async updateVerification(userId) {
     try {
       await db.executeQuery(
-        'UPDATE users SET is_verified = TRUE WHERE id = ?',
+        'UPDATE users SET is_verified = TRUE WHERE id = $1',
         [userId]
       );
       return true;
@@ -93,7 +93,7 @@ class User {
     try {
       const otpExpiry = new Date(Date.now() + expiryMinutes * 60 * 1000);
       await db.executeQuery(
-        'UPDATE users SET otp = ?, otp_expiry = ? WHERE id = ?',
+        'UPDATE users SET otp = $1, otp_expiry = $2 WHERE id = $3',
         [otp, otpExpiry, userId]
       );
       return true;
@@ -106,7 +106,7 @@ class User {
   static async verifyOTP(userId, otp) {
     try {
       const user = await db.executeQuery(
-        'SELECT otp, otp_expiry FROM users WHERE id = ?',
+        'SELECT otp, otp_expiry FROM users WHERE id = $1',
         [userId]
       );
       
@@ -131,7 +131,7 @@ class User {
 
       // Clear OTP after successful verification
       await db.executeQuery(
-        'UPDATE users SET otp = NULL, otp_expiry = NULL, is_verified = TRUE WHERE id = ?',
+        'UPDATE users SET otp = NULL, otp_expiry = NULL, is_verified = TRUE WHERE id = $1',
         [userId]
       );
 
@@ -145,7 +145,7 @@ class User {
   static async clearOTP(userId) {
     try {
       await db.executeQuery(
-        'UPDATE users SET otp = NULL, otp_expiry = NULL WHERE id = ?',
+        'UPDATE users SET otp = NULL, otp_expiry = NULL WHERE id = $1',
         [userId]
       );
       return true;
@@ -158,7 +158,7 @@ class User {
   static async isOTPValid(userId) {
     try {
       const user = await db.executeQuery(
-        'SELECT otp, otp_expiry FROM users WHERE id = ?',
+        'SELECT otp, otp_expiry FROM users WHERE id = $1',
         [userId]
       );
       

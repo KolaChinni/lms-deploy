@@ -7,12 +7,12 @@ class Blog {
       
       const result = await executeQuery(
         `INSERT INTO blogs (title, content, author_id, featured_image, tags, read_time) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6)`,
         [title, content, author_id, featured_image, JSON.stringify(tags || []), read_time || 5]
       );
 
       return { 
-        id: result.insertId,
+        id: result[0].id,
         ...blogData,
         created_at: new Date()
       };
@@ -50,7 +50,7 @@ class Blog {
           u.email as author_email
         FROM blogs b
         JOIN users u ON b.author_id = u.id
-        WHERE b.id = ?
+        WHERE b.id = $1
       `, [blogId]);
       
       return rows[0] || null;
@@ -64,7 +64,7 @@ class Blog {
     try {
       const rows = await executeQuery(`
         SELECT * FROM blogs 
-        WHERE author_id = ?
+        WHERE author_id = $1
         ORDER BY created_at DESC
       `, [authorId]);
       return rows;

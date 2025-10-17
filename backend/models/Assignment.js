@@ -12,12 +12,20 @@ class Assignment {
       const result = await executeQuery(
         `INSERT INTO assignments 
          (course_id, title, description, due_date, max_points, assignment_type, created_at) 
-         VALUES ($1, $2, $3, $4, $5, $6, NOW()) 
-         RETURNING *`,
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
         [course_id, title.trim(), description?.trim(), due_date, max_points, assignment_type || 'assignment']
       );
 
-      return result[0];
+      return { 
+        id: result[0].id,
+        course_id,
+        title: title.trim(),
+        description: description?.trim(),
+        due_date,
+        max_points,
+        assignment_type: assignment_type || 'assignment',
+        created_at: new Date()
+      };
     } catch (error) {
       console.error('Assignment creation error:', error);
       throw error;
@@ -88,12 +96,11 @@ class Assignment {
       const result = await executeQuery(
         `UPDATE assignments 
          SET title = $1, description = $2, due_date = $3, max_points = $4, assignment_type = $5, updated_at = NOW()
-         WHERE id = $6
-         RETURNING *`,
+         WHERE id = $6`,
         [title, description, due_date, max_points, assignment_type, assignmentId]
       );
 
-      return result.length > 0;
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Assignment update error:', error);
       throw error;

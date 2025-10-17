@@ -13,12 +13,12 @@ class Course {
 
       const result = await executeQuery(
         `INSERT INTO courses (title, description, duration, teacher_id, created_at) 
-         VALUES (?, ?, ?, ?, NOW())`,
+         VALUES ($1, $2, $3, $4, NOW())`,
         [title.trim(), description.trim(), duration || null, teacher_id]
       );
 
       return { 
-        id: result.insertId, 
+        id: result[0].id, 
         title: title.trim(), 
         description: description.trim(), 
         duration,
@@ -60,7 +60,7 @@ class Course {
           u.email as teacher_email
         FROM courses c
         JOIN users u ON c.teacher_id = u.id
-        WHERE c.id = ?
+        WHERE c.id = $1
       `, [id]);
       return rows[0] || null;
     } catch (error) {
@@ -76,7 +76,7 @@ class Course {
           c.*,
           (SELECT COUNT(*) FROM enrollments WHERE course_id = c.id) as student_count
         FROM courses c
-        WHERE c.teacher_id = ?
+        WHERE c.teacher_id = $1
         ORDER BY c.created_at DESC
       `, [teacherId]);
       return rows;
@@ -92,12 +92,12 @@ class Course {
       
       const result = await executeQuery(
         `UPDATE courses 
-         SET title = ?, description = ?, duration = ?, is_published = ?, updated_at = NOW()
-         WHERE id = ? AND teacher_id = ?`,
+         SET title = $1, description = $2, duration = $3, is_published = $4, updated_at = NOW()
+         WHERE id = $5 AND teacher_id = $6`,
         [title, description, duration, is_published, courseId, teacherId]
       );
 
-      return result.affectedRows > 0;
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Course update error:', error);
       throw error;
@@ -108,10 +108,10 @@ class Course {
   static async delete(courseId) {
     try {
       const result = await executeQuery(
-        'DELETE FROM courses WHERE id = ?',
+        'DELETE FROM courses WHERE id = $1',
         [courseId]
       );
-      return result.affectedRows > 0;
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Course deletion error:', error);
       throw error;
@@ -121,7 +121,7 @@ class Course {
   static async checkTeacherOwnership(courseId, teacherId) {
     try {
       const rows = await executeQuery(
-        'SELECT id FROM courses WHERE id = ? AND teacher_id = ?',
+        'SELECT id FROM courses WHERE id = $1 AND teacher_id = $2',
         [courseId, teacherId]
       );
       return rows.length > 0;

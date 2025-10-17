@@ -18,12 +18,12 @@ class Submission {
       const result = await executeQuery(
         `INSERT INTO submissions 
          (assignment_id, student_id, submission_text, file_url, file_public_id, submitted_at, status) 
-         VALUES (?, ?, ?, ?, ?, NOW(), 'submitted')`,
+         VALUES ($1, $2, $3, $4, $5, NOW(), 'submitted')`,
         [assignment_id, student_id, submission_text, file_url, file_public_id || null]
       );
 
       return { 
-        id: result.insertId,
+        id: result[0].id,
         assignment_id,
         student_id,
         submission_text,
@@ -47,7 +47,7 @@ class Submission {
         `SELECT s.*, a.title as assignment_title
          FROM submissions s
          JOIN assignments a ON s.assignment_id = a.id
-         WHERE s.student_id = ? AND s.assignment_id = ?`,
+         WHERE s.student_id = $1 AND s.assignment_id = $2`,
         [studentId, assignmentId]
       );
       return rows[0] || null;
@@ -66,7 +66,7 @@ class Submission {
           u.email as student_email
         FROM submissions s
         JOIN users u ON s.student_id = u.id
-        WHERE s.assignment_id = ?
+        WHERE s.assignment_id = $1
         ORDER BY s.submitted_at DESC
       `, [assignmentId]);
       return rows;
@@ -90,7 +90,7 @@ class Submission {
         JOIN assignments a ON s.assignment_id = a.id
         JOIN courses c ON a.course_id = c.id
         JOIN users u ON c.teacher_id = u.id
-        WHERE s.student_id = ?
+        WHERE s.student_id = $1
         ORDER BY s.submitted_at DESC
       `, [studentId]);
       return rows;
@@ -109,7 +109,7 @@ class Submission {
         JOIN assignments a ON s.assignment_id = a.id
         JOIN users u ON s.student_id = u.id
         JOIN courses c ON a.course_id = c.id
-        WHERE s.id = ?
+        WHERE s.id = $1
       `, [submissionId]);
       return rows[0] || null;
     } catch (error) {
@@ -128,12 +128,12 @@ class Submission {
 
       const result = await executeQuery(
         `UPDATE submissions 
-         SET grade = ?, feedback = ?, graded_at = NOW(), graded_by = ?, status = 'graded'
-         WHERE id = ?`,
+         SET grade = $1, feedback = $2, graded_at = NOW(), graded_by = $3, status = 'graded'
+         WHERE id = $4`,
         [grade, feedback, graded_by, submissionId]
       );
 
-      return result.affectedRows > 0;
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Grade submission error:', error);
       throw error;
@@ -151,9 +151,9 @@ class Submission {
           SUM(a.max_points) as total_possible_points,
           SUM(s.grade) as total_earned_points
         FROM assignments a
-        LEFT JOIN submissions s ON a.id = s.assignment_id AND s.student_id = ?
+        LEFT JOIN submissions s ON a.id = s.assignment_id AND s.student_id = $1
         WHERE a.course_id IN (
-          SELECT course_id FROM enrollments WHERE student_id = ?
+          SELECT course_id FROM enrollments WHERE student_id = $2
         )
       `, [studentId, studentId]);
 

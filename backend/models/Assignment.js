@@ -12,20 +12,12 @@ class Assignment {
       const result = await executeQuery(
         `INSERT INTO assignments 
          (course_id, title, description, due_date, max_points, assignment_type, created_at) 
-         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, NOW()) 
+         RETURNING *`,
         [course_id, title.trim(), description?.trim(), due_date, max_points, assignment_type || 'assignment']
       );
 
-      return { 
-        id: result.insertId,
-        course_id,
-        title: title.trim(),
-        description: description?.trim(),
-        due_date,
-        max_points,
-        assignment_type: assignment_type || 'assignment',
-        created_at: new Date()
-      };
+      return result[0];
     } catch (error) {
       console.error('Assignment creation error:', error);
       throw error;
@@ -36,7 +28,7 @@ class Assignment {
     try {
       const rows = await executeQuery(`
         SELECT * FROM assignments 
-        WHERE course_id = ?
+        WHERE course_id = $1
         ORDER BY created_at DESC
       `, [courseId]);
       return rows;
@@ -52,7 +44,7 @@ class Assignment {
         SELECT a.*, c.title as course_title, c.teacher_id
         FROM assignments a
         JOIN courses c ON a.course_id = c.id
-        WHERE a.id = ?
+        WHERE a.id = $1
       `, [assignmentId]);
       return rows[0] || null;
     } catch (error) {
@@ -69,15 +61,15 @@ class Assignment {
           c.title as course_title,
           c.teacher_id,
           u.name as teacher_name,
-          (SELECT COUNT(*) FROM submissions s WHERE s.assignment_id = a.id AND s.student_id = ?) as has_submitted,
-          (SELECT s.grade FROM submissions s WHERE s.assignment_id = a.id AND s.student_id = ?) as student_grade,
-          (SELECT s.submitted_at FROM submissions s WHERE s.assignment_id = a.id AND s.student_id = ?) as submitted_at,
-          (SELECT s.feedback FROM submissions s WHERE s.assignment_id = a.id AND s.student_id = ?) as feedback
+          (SELECT COUNT(*) FROM submissions s WHERE s.assignment_id = a.id AND s.student_id = $1) as has_submitted,
+          (SELECT s.grade FROM submissions s WHERE s.assignment_id = a.id AND s.student_id = $2) as student_grade,
+          (SELECT s.submitted_at FROM submissions s WHERE s.assignment_id = a.id AND s.student_id = $3) as submitted_at,
+          (SELECT s.feedback FROM submissions s WHERE s.assignment_id = a.id AND s.student_id = $4) as feedback
         FROM assignments a
         JOIN courses c ON a.course_id = c.id
         JOIN users u ON c.teacher_id = u.id
         WHERE c.id IN (
-          SELECT course_id FROM enrollments WHERE student_id = ?
+          SELECT course_id FROM enrollments WHERE student_id = $5
         )
         AND c.is_published = TRUE
         ORDER BY a.due_date ASC, a.created_at DESC
@@ -95,12 +87,13 @@ class Assignment {
       
       const result = await executeQuery(
         `UPDATE assignments 
-         SET title = ?, description = ?, due_date = ?, max_points = ?, assignment_type = ?, updated_at = NOW()
-         WHERE id = ?`,
+         SET title = $1, description = $2, due_date = $3, max_points = $4, assignment_type = $5, updated_at = NOW()
+         WHERE id = $6
+         RETURNING *`,
         [title, description, due_date, max_points, assignment_type, assignmentId]
       );
 
-      return result.affectedRows > 0;
+      return result.length > 0;
     } catch (error) {
       console.error('Assignment update error:', error);
       throw error;
@@ -110,10 +103,10 @@ class Assignment {
   static async delete(assignmentId) {
     try {
       const result = await executeQuery(
-        'DELETE FROM assignments WHERE id = ?',
+        'DELETE FROM assignments WHERE id = $1',
         [assignmentId]
       );
-      return result.affectedRows > 0;
+      return result.rowCount > 0;
     } catch (error) {
       console.error('Assignment deletion error:', error);
       throw error;

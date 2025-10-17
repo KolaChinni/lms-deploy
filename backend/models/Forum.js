@@ -5,12 +5,12 @@ class Forum {
   static async createCategory(courseId, title, description = '') {
     try {
       const result = await executeQuery(
-        `INSERT INTO forum_categories (course_id, title, description) VALUES (?, ?, ?)`,
+        `INSERT INTO forum_categories (course_id, title, description) VALUES ($1, $2, $3)`,
         [courseId, title, description]
       );
 
       return { 
-        id: result.insertId,
+        id: result[0].id,
         course_id: courseId,
         title,
         description,
@@ -35,7 +35,7 @@ class Forum {
            WHERE ft.category_id = fc.id) as last_activity
         FROM forum_categories fc
         LEFT JOIN forum_threads ft ON fc.id = ft.category_id
-        WHERE fc.course_id = ?
+        WHERE fc.course_id = $1
         GROUP BY fc.id
         ORDER BY fc.created_at ASC
       `, [courseId]);
@@ -53,7 +53,7 @@ class Forum {
       const { category_id, author_id, title, content } = threadData;
       
       const result = await executeQuery(
-        `INSERT INTO forum_threads (category_id, author_id, title, content) VALUES (?, ?, ?, ?)`,
+        `INSERT INTO forum_threads (category_id, author_id, title, content) VALUES ($1, $2, $3, $4)`,
         [category_id, author_id, title, content]
       );
 
@@ -61,7 +61,7 @@ class Forum {
       await this.ensureDefaultCategory(category_id);
 
       return { 
-        id: result.insertId,
+        id: result[0].id,
         ...threadData,
         view_count: 0,
         reply_count: 0,
@@ -112,9 +112,9 @@ class Forum {
            WHERE fp2.thread_id = ft.id) as last_reply_date
         FROM forum_threads ft
         JOIN users u ON ft.author_id = u.id
-        WHERE ft.category_id = ?
+        WHERE ft.category_id = $1
         ORDER BY ft.is_pinned DESC, ft.last_reply_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT $2 OFFSET $3
       `, [categoryId, limit, offset]);
       
       return rows;
@@ -136,14 +136,14 @@ class Forum {
         FROM forum_threads ft
         JOIN users u ON ft.author_id = u.id
         JOIN forum_categories fc ON ft.category_id = fc.id
-        WHERE ft.id = ?
+        WHERE ft.id = $1
       `, [threadId]);
       
       if (rows.length === 0) return null;
       
       // Increment view count
       await executeQuery(
-        `UPDATE forum_threads SET view_count = view_count + 1 WHERE id = ?`,
+        `UPDATE forum_threads SET view_count = view_count + 1 WHERE id = $1`,
         [threadId]
       );
       
@@ -160,7 +160,7 @@ class Forum {
       const { thread_id, author_id, content, parent_id = null } = postData;
       
       const result = await executeQuery(
-        `INSERT INTO forum_posts (thread_id, author_id, content, parent_id) VALUES (?, ?, ?, ?)`,
+        `INSERT INTO forum_posts (thread_id, author_id, content, parent_id) VALUES ($1, $2, $3, $4)`,
         [thread_id, author_id, content, parent_id]
       );
 
@@ -168,11 +168,11 @@ class Forum {
       await executeQuery(`
         UPDATE forum_threads 
         SET reply_count = reply_count + 1, last_reply_at = NOW() 
-        WHERE id = ?
+        WHERE id = $1
       `, [thread_id]);
 
       return { 
-        id: result.insertId,
+        id: result[0].id,
         ...postData,
         created_at: new Date()
       };
@@ -193,7 +193,7 @@ class Forum {
           (SELECT COUNT(*) FROM forum_posts fp2 WHERE fp2.parent_id = fp.id) as reply_count
         FROM forum_posts fp
         JOIN users u ON fp.author_id = u.id
-        WHERE fp.thread_id = ? AND fp.parent_id IS NULL
+        WHERE fp.thread_id = $1 AND fp.parent_id IS NULL
         ORDER BY fp.created_at ASC
       `, [threadId]);
       
@@ -213,7 +213,7 @@ class Forum {
           u.role as author_role
         FROM forum_posts fp
         JOIN users u ON fp.author_id = u.id
-        WHERE fp.parent_id = ?
+        WHERE fp.parent_id = $1
         ORDER BY fp.created_at ASC
       `, [postId]);
       
@@ -231,8 +231,9 @@ class Forum {
       
       const result = await executeQuery(`
         INSERT INTO forum_reactions (post_id, user_id, reaction_type) 
-        VALUES (?, ?, ?)
-        ON DUPLICATE KEY UPDATE reaction_type = VALUES(reaction_type)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (post_id, user_id) 
+        DO UPDATE SET reaction_type = EXCLUDED.reaction_type
       `, [post_id, user_id, reaction_type]);
 
       return { success: true };
@@ -245,7 +246,7 @@ class Forum {
   static async removeReaction(postId, userId) {
     try {
       await executeQuery(
-        `DELETE FROM forum_reactions WHERE post_id = ? AND user_id = ?`,
+        `DELETE FROM forum_reactions WHERE post_id = $1 AND user_id = $2`,
         [postId, userId]
       );
       
@@ -264,7 +265,7 @@ class Forum {
           u.name as user_name
         FROM forum_reactions fr
         JOIN users u ON fr.user_id = u.id
-        WHERE fr.post_id = ?
+        WHERE fr.post_id = $1
       `, [postId]);
       
       return rows;
@@ -285,7 +286,7 @@ class Forum {
         FROM forum_threads ft
         JOIN users u ON ft.author_id = u.id
         JOIN forum_categories fc ON ft.category_id = fc.id
-        WHERE fc.course_id = ? AND (ft.title LIKE ? OR ft.content LIKE ?)
+        WHERE fc.course_id = $1 AND (ft.title LIKE $2 OR ft.content LIKE $3)
         ORDER BY ft.last_reply_at DESC
       `, [courseId, `%${query}%`, `%${query}%`]);
       
@@ -300,7 +301,7 @@ class Forum {
   static async pinThread(threadId, pinned = true) {
     try {
       await executeQuery(
-        `UPDATE forum_threads SET is_pinned = ? WHERE id = ?`,
+        `UPDATE forum_threads SET is_pinned = $1 WHERE id = $2`,
         [pinned, threadId]
       );
       
@@ -314,7 +315,7 @@ class Forum {
   static async lockThread(threadId, locked = true) {
     try {
       await executeQuery(
-        `UPDATE forum_threads SET is_locked = ? WHERE id = ?`,
+        `UPDATE forum_threads SET is_locked = $1 WHERE id = $2`,
         [locked, threadId]
       );
       
@@ -328,7 +329,7 @@ class Forum {
   static async markAsAnswer(postId, isAnswer = true) {
     try {
       await executeQuery(
-        `UPDATE forum_posts SET is_answer = ? WHERE id = ?`,
+        `UPDATE forum_posts SET is_answer = $1 WHERE id = $2`,
         [isAnswer, postId]
       );
       

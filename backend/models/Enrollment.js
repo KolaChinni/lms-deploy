@@ -10,8 +10,8 @@ class Enrollment {
 
       // Add validation for student and course existence
       const [student, course] = await Promise.all([
-        executeQuery('SELECT id, name, role FROM users WHERE id = ?', [studentId]),
-        executeQuery('SELECT id, title, is_published FROM courses WHERE id = ?', [courseId]) // REMOVED max_students
+        executeQuery('SELECT id, name, role FROM users WHERE id = $1', [studentId]),
+        executeQuery('SELECT id, title, is_published FROM courses WHERE id = $1', [courseId]) // REMOVED max_students
       ]);
 
       if (student.length === 0) {
@@ -34,7 +34,7 @@ class Enrollment {
 
       // Check if already enrolled
       const existing = await executeQuery(
-        'SELECT id FROM enrollments WHERE student_id = ? AND course_id = ?',
+        'SELECT id FROM enrollments WHERE student_id = $1 AND course_id = $2',
         [studentId, courseId]
       );
 
@@ -44,12 +44,12 @@ class Enrollment {
 
       // Create new enrollment
       const result = await executeQuery(
-        'INSERT INTO enrollments (student_id, course_id, enrolled_at) VALUES (?, ?, NOW())',
+        'INSERT INTO enrollments (student_id, course_id, enrolled_at) VALUES ($1, $2, NOW())',
         [studentId, courseId]
       );
 
       return { 
-        id: result.insertId, 
+        id: result[0].id, 
         student_id: studentId, 
         course_id: courseId,
         enrolled_at: new Date(),
@@ -75,7 +75,7 @@ class Enrollment {
         FROM enrollments e
         JOIN courses c ON e.course_id = c.id
         JOIN users u ON c.teacher_id = u.id
-        WHERE e.student_id = ?
+        WHERE e.student_id = $1
         ORDER BY e.enrolled_at DESC
       `, [studentId]);
       return rows;
@@ -94,7 +94,7 @@ class Enrollment {
           u.email as student_email
         FROM enrollments e
         JOIN users u ON e.student_id = u.id
-        WHERE e.course_id = ?
+        WHERE e.course_id = $1
         ORDER BY e.enrolled_at DESC
       `, [courseId]);
       return rows;
@@ -107,7 +107,7 @@ class Enrollment {
   static async isEnrolled(studentId, courseId) {
     try {
       const rows = await executeQuery(
-        'SELECT id FROM enrollments WHERE student_id = ? AND course_id = ?',
+        'SELECT id FROM enrollments WHERE student_id = $1 AND course_id = $2',
         [studentId, courseId]
       );
       return rows.length > 0;
@@ -120,7 +120,7 @@ class Enrollment {
   static async getEnrollmentCount(courseId) {
     try {
       const rows = await executeQuery(
-        'SELECT COUNT(*) as count FROM enrollments WHERE course_id = ?',
+        'SELECT COUNT(*) as count FROM enrollments WHERE course_id = $1',
         [courseId]
       );
       return rows[0].count;
@@ -138,11 +138,11 @@ class Enrollment {
       }
 
       const result = await executeQuery(
-        'UPDATE enrollments SET status = ? WHERE id = ?',
+        'UPDATE enrollments SET status = $1 WHERE id = $2',
         [status, enrollmentId]
       );
 
-      if (result.affectedRows === 0) {
+      if (result.rowCount === 0) {
         throw new Error('Enrollment not found');
       }
 
@@ -165,7 +165,7 @@ class Enrollment {
         FROM enrollments e
         JOIN users u ON e.student_id = u.id
         JOIN courses c ON e.course_id = c.id
-        WHERE e.id = ?
+        WHERE e.id = $1
       `, [enrollmentId]);
       
       return rows.length > 0 ? rows[0] : null;
@@ -183,9 +183,9 @@ class Enrollment {
           (SELECT COUNT(*) FROM student_progress 
            WHERE enrollment_id = e.id AND completed = true) as completed_lessons,
           (SELECT COUNT(*) FROM course_content 
-           WHERE course_id = ?) as total_lessons
+           WHERE course_id = $1) as total_lessons
         FROM enrollments e
-        WHERE e.student_id = ? AND e.course_id = ?
+        WHERE e.student_id = $2 AND e.course_id = $3
       `, [courseId, studentId, courseId]);
       
       return rows.length > 0 ? rows[0] : null;
@@ -199,7 +199,7 @@ class Enrollment {
   static async checkStudentEnrollment(courseId, studentId) {
     try {
       const rows = await executeQuery(
-        'SELECT id FROM enrollments WHERE course_id = ? AND student_id = ?',
+        'SELECT id FROM enrollments WHERE course_id = $1 AND student_id = $2',
         [courseId, studentId]
       );
       return rows.length > 0;

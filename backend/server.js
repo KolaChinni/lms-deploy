@@ -10,17 +10,48 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ========== MIDDLEWARE SETUP ==========
-app.use(cors({
-  origin: 'http://localhost:3000',
+// CORS Configuration for deployment
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // List of allowed origins
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',  // Vite default
+      'http://localhost:5174',  // Vite alternative
+      process.env.CLIENT_URL    // Your production frontend URL
+    ].filter(Boolean); // Remove any undefined values
+
+    // Check if the origin is in allowed list
+    if (allowedOrigins.includes(origin) || allowedOrigins.some(allowed => origin.startsWith(allowed))) {
+      return callback(null, true);
+    } else {
+      console.log('🚫 CORS Blocked:', origin);
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files
-app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files - only in development
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+} else {
+  // In production, we'll use Cloudinary/CDN for file serving
+  console.log('📁 Static file serving disabled in production - using Cloudinary');
+}
 
 // ========== BASIC ROUTES (TEST FIRST) ==========
 app.get('/', (req, res) => {
@@ -28,6 +59,7 @@ app.get('/', (req, res) => {
     message: '🚀 LearnHub LMS API is running!',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
     endpoints: {
       auth: '/api/auth/*',
       courses: '/api/courses/*',
@@ -64,7 +96,6 @@ const initializeDatabase = async () => {
   }
 };
 
-// ========== ROUTE IMPORTS WITH ERROR HANDLING ==========
 // ========== ROUTE IMPORTS WITH ERROR HANDLING ==========
 const loadRoutes = () => {
   try {
@@ -123,6 +154,7 @@ const loadRoutes = () => {
     return false;
   }
 };
+
 const loadVideoRoutes = () => {
   try {
     // Only load video routes if Cloudinary is configured
@@ -191,46 +223,45 @@ const startServer = async () => {
   }
 
   // ========== 404 HANDLER (MUST BE AFTER ALL ROUTES) ==========
-// ========== 404 HANDLER (MUST BE AFTER ALL ROUTES) ==========
- app.use('*', (req, res) => {
-   console.log('🔴 404 - Endpoint not found:', req.originalUrl);
+  app.use('*', (req, res) => {
+    console.log('🔴 404 - Endpoint not found:', req.originalUrl);
   
-   res.status(404).json({
-     success: false,
-     message: '❌ Endpoint not found',
-     path: req.originalUrl,
-     method: req.method,
-     availableEndpoints: [
-       'GET  /',
-       'GET  /api/health',
-       'GET  /api/test',
-       'POST /api/auth/register',
-       'POST /api/auth/login',
-       'GET  /api/auth/me',
-       'GET  /api/auth/test',
-       'GET  /api/courses',
-       'POST /api/courses',
-       'GET  /api/courses/:id',
-       'GET  /api/courses/teacher/my-courses',
-       'GET  /api/courses/student/my-courses',
-       'POST /api/courses/:courseId/enroll',
-      // ADD ASSIGNMENTS ENDPOINTS
-       'POST /api/assignments/courses/:courseId/assignments',
-       'GET  /api/assignments/courses/:courseId/assignments',
-       'GET  /api/assignments/student/assignments',
-       'GET  /api/assignments/student/courses/:courseId/assignments',
-       'POST /api/assignments/assignments/:assignmentId/submit',
-       'GET  /api/assignments/assignments/:assignmentId/submissions',
-       'GET  /api/assignments/student/submissions',
-       'POST /api/assignments/submissions/:submissionId/grade',
-       'GET  /api/assignments/student/grades',
-      // OTHER ENDPOINTS
-       'GET  /api/blogs',
-       'POST /api/blogs'
-     ],
-     timestamp: new Date().toISOString()
-   });
- });
+    res.status(404).json({
+      success: false,
+      message: '❌ Endpoint not found',
+      path: req.originalUrl,
+      method: req.method,
+      availableEndpoints: [
+        'GET  /',
+        'GET  /api/health',
+        'GET  /api/test',
+        'POST /api/auth/register',
+        'POST /api/auth/login',
+        'GET  /api/auth/me',
+        'GET  /api/auth/test',
+        'GET  /api/courses',
+        'POST /api/courses',
+        'GET  /api/courses/:id',
+        'GET  /api/courses/teacher/my-courses',
+        'GET  /api/courses/student/my-courses',
+        'POST /api/courses/:courseId/enroll',
+        // ADD ASSIGNMENTS ENDPOINTS
+        'POST /api/assignments/courses/:courseId/assignments',
+        'GET  /api/assignments/courses/:courseId/assignments',
+        'GET  /api/assignments/student/assignments',
+        'GET  /api/assignments/student/courses/:courseId/assignments',
+        'POST /api/assignments/assignments/:assignmentId/submit',
+        'GET  /api/assignments/assignments/:assignmentId/submissions',
+        'GET  /api/assignments/student/submissions',
+        'POST /api/assignments/submissions/:submissionId/grade',
+        'GET  /api/assignments/student/grades',
+        // OTHER ENDPOINTS
+        'GET  /api/blogs',
+        'POST /api/blogs'
+      ],
+      timestamp: new Date().toISOString()
+    });
+  });
 
   // ========== ERROR HANDLER (MUST BE LAST) ==========
   app.use((err, req, res, next) => {

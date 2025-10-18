@@ -4,49 +4,49 @@ export const courseService = {
   // Get all courses
   async getAllCourses() {
     const response = await api.get('/courses')
-    return response.data
+    return response // FIXED: Remove .data
   },
 
   // Create a new course (teacher only)
   async createCourse(courseData) {
     const response = await api.post('/courses', courseData)
-    return response.data
+    return response // FIXED: Remove .data
   },
 
-  // Delete a course (teacher only) - NEW METHOD
+  // Delete a course (teacher only)
   async deleteCourse(courseId) {
     const response = await api.delete(`/courses/${courseId}`)
-    return response.data
+    return response // FIXED: Remove .data
   },
 
   // Get teacher's courses
   async getTeacherCourses() {
     const response = await api.get('/courses/teacher/my-courses')
-    return response.data
+    return response // FIXED: Remove .data
   },
 
   // Get course details
   async getCourseDetails(courseId) {
     const response = await api.get(`/courses/${courseId}`)
-    return response.data
+    return response // FIXED: Remove .data
   },
 
   // Enroll in a course
   async enrollInCourse(courseId) {
     const response = await api.post(`/courses/${courseId}/enroll`)
-    return response.data
+    return response // FIXED: Remove .data
   },
 
   // Get student's enrolled courses
   async getStudentCourses() {
     const response = await api.get('/courses/student/my-courses')
-    return response.data
+    return response // FIXED: Remove .data
   },
 
   // Get course enrollments (teacher only)
   async getCourseEnrollments(courseId) {
     const response = await api.get(`/courses/${courseId}/enrollments`)
-    return response.data
+    return response // FIXED: Remove .data
   },
 
   // Add course content (teacher only)
@@ -59,61 +59,63 @@ export const courseService = {
     const response = await api.post(`/courses/${courseId}/content`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    return response.data
+    return response // FIXED: Remove .data
   },
 
-  // NEW: Add video content via Cloudinary (teacher only)
+  // Add video content via Cloudinary (teacher only)
   async addVideoContent(courseId, videoData) {
     const response = await api.post(`/courses/${courseId}/content/video`, videoData)
-    return response.data
+    return response // FIXED: Remove .data
   },
 
-  // NEW: Get course videos
+  // Get course videos
   async getCourseVideos(courseId) {
     const response = await api.get(`/courses/${courseId}/videos`)
-    return response.data
+    return response // FIXED: Remove .data
   },
 
-  // NEW: Delete course content (teacher only)
+  // Delete course content (teacher only)
   async deleteCourseContent(contentId) {
     const response = await api.delete(`/courses/content/${contentId}`)
-    return response.data
+    return response // FIXED: Remove .data
   },
 
-  // NEW: Update video content (teacher only)
+  // Update video content (teacher only)
   async updateVideoContent(contentId, updateData) {
     const response = await api.put(`/courses/content/${contentId}/video`, updateData)
-    return response.data
+    return response // FIXED: Remove .data
   },
 
-  // NEW: Get content statistics (teacher only)
+  // Get content statistics (teacher only)
   async getContentStats(courseId) {
     const response = await api.get(`/courses/${courseId}/content/stats`)
-    return response.data
+    return response // FIXED: Remove .data
   },
 
-  // NEW: Get Cloudinary upload signature
+  // Get Cloudinary upload signature
   async getCloudinarySignature(folder = 'lms/courses/videos') {
     const response = await api.post('/courses/upload/signature', { folder })
-    return response.data
+    return response // FIXED: Remove .data
   },
 
   // Update progress
   async updateProgress(courseId, contentId, progressData) {
     const response = await api.post(`/courses/${courseId}/content/${contentId}/progress`, progressData)
-    return response.data
+    return response // FIXED: Remove .data
   },
+
   // Alias for getCourseDetails for consistency
   async getCourse(courseId) {
     return this.getCourseDetails(courseId)
   },
+
   // Get student progress
   async getStudentProgress() {
     const response = await api.get('/courses/student/progress')
-    return response.data
+    return response // FIXED: Remove .data
   },
 
-  // NEW: Utility method to format video duration
+  // Utility method to format video duration
   formatVideoDuration(seconds) {
     if (!seconds) return '0:00';
     const minutes = Math.floor(seconds / 60);
@@ -121,7 +123,7 @@ export const courseService = {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   },
 
-  // NEW: Utility method to get video thumbnail (Cloudinary)
+  // Utility method to get video thumbnail (Cloudinary)
   getVideoThumbnail(videoUrl, width = 320, height = 180) {
     if (!videoUrl) return null;
     
@@ -134,7 +136,7 @@ export const courseService = {
     return videoUrl; // Return original URL for non-Cloudinary videos
   },
 
-  // NEW: Utility method to check if URL is from Cloudinary
+  // Utility method to check if URL is from Cloudinary
   isCloudinaryUrl(url) {
     return url && url.includes('cloudinary.com');
   }

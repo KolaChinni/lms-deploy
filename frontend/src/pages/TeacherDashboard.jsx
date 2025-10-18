@@ -21,8 +21,24 @@ const TeacherDashboard = () => {
 
       console.log('📊 Teacher courses response:', coursesResponse)
 
-      // FIXED: Use coursesResponse.courses instead of coursesResponse.data.courses
-      const teacherCourses = coursesResponse.courses || []
+      // FIXED: Handle different response formats
+      let teacherCourses = []
+      
+      if (coursesResponse && coursesResponse.data && coursesResponse.data.courses) {
+        // Backend format: { data: { courses: [...] } }
+        teacherCourses = coursesResponse.data.courses
+      } else if (coursesResponse && coursesResponse.courses) {
+        // Alternative format: { courses: [...] }
+        teacherCourses = coursesResponse.courses
+      } else if (Array.isArray(coursesResponse)) {
+        // Direct array format: [...]
+        teacherCourses = coursesResponse
+      } else {
+        // Fallback: try to extract courses from response
+        teacherCourses = coursesResponse?.data || coursesResponse || []
+      }
+
+      console.log('📚 Extracted courses:', teacherCourses)
       setCourses(teacherCourses)
       
       // Calculate stats
@@ -45,6 +61,18 @@ const TeacherDashboard = () => {
     }
   }
 
+  // Refresh dashboard when returning from course creation
+  useEffect(() => {
+    const handleFocus = () => {
+      loadDashboardData()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [])
+
   if (loading) {
     return (
       <div className="dashboard-page">
@@ -65,6 +93,13 @@ const TeacherDashboard = () => {
         <div className="welcome-section">
           <h1>Teacher Dashboard 🎓</h1>
           <p>Manage your courses and track student progress</p>
+          <button 
+            onClick={loadDashboardData} 
+            className="btn btn-outline btn-sm"
+            style={{ marginTop: '10px' }}
+          >
+            Refresh Data
+          </button>
         </div>
 
         {/* Stats Overview */}
@@ -137,11 +172,17 @@ const TeacherDashboard = () => {
           <div className="dashboard-section">
             <div className="section-header">
               <h2>Your Courses</h2>
-              {courses.length > 0 && (
+              <div className="section-actions">
+                <button 
+                  onClick={loadDashboardData} 
+                  className="btn btn-outline btn-sm"
+                >
+                  Refresh
+                </button>
                 <Link to="/teacher/courses/create" className="btn btn-primary btn-sm">
                   Create New
                 </Link>
-              )}
+              </div>
             </div>
             
             {courses.length === 0 ? (
@@ -197,9 +238,9 @@ const TeacherCourseCard = ({ course }) => {
       <div className="course-header">
         <h4 className="course-title">{course.title}</h4>
         <p className="course-description">
-          {course.description.length > 80 
+          {course.description && course.description.length > 80 
             ? `${course.description.substring(0, 80)}...` 
-            : course.description
+            : course.description || 'No description'
           }
         </p>
       </div>

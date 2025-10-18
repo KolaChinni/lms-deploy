@@ -36,7 +36,7 @@ const sendResponse = (res, statusCode, message, data = null, success = true) => 
 
 exports.register = async (req, res) => {
   try {
-    console.log('Registration attempt for:', req.body.email);
+    console.log('🟡 Registration attempt for:', req.body.email);
     
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -51,7 +51,7 @@ exports.register = async (req, res) => {
 
     const existingUser = await User.findByEmail(email);
     if (existingUser) {
-      console.log('Duplicate email found:', email, 'registered as:', existingUser.role);
+      console.log('❌ Duplicate email found:', email, 'registered as:', existingUser.role);
       return sendResponse(res, 409, {
         type: 'USER_EXISTS',
         message: `This email is already registered as a ${existingUser.role}.`,
@@ -64,7 +64,7 @@ exports.register = async (req, res) => {
     const user = await User.create({ name, email, password, role });
     const token = generateToken(user.id);
 
-    console.log('User registered successfully:', user.email);
+    console.log('✅ User registered successfully:', user.email);
     
     sendResponse(res, 201, 'User registered successfully', {
       user: {
@@ -72,13 +72,13 @@ exports.register = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        is_verified: user.is_verified
+        is_verified: user.is_verified || false // FIX: Added fallback
       },
       token
     });
     
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('❌ Registration error:', error);
     
     if (error.message.includes('already exists')) {
       return sendResponse(res, 409, {
@@ -98,11 +98,11 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    console.log('Login attempt for:', req.body.email, 'as', req.body.role);
+    console.log('🟡 Login attempt for:', req.body.email, 'as', req.body.role);
     
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
+      console.log('❌ Validation errors:', errors.array());
       return sendResponse(res, 400, {
         type: 'VALIDATION_ERROR',
         message: 'Validation failed',
@@ -114,7 +114,7 @@ exports.login = async (req, res) => {
 
     const user = await User.findByEmail(email);
     if (!user) {
-      console.log('No account found with email:', email);
+      console.log('❌ No account found with email:', email);
       return sendResponse(res, 404, {
         type: 'NO_ACCOUNT',
         message: 'No account found with this email address.',
@@ -122,10 +122,10 @@ exports.login = async (req, res) => {
       }, null, false);
     }
 
-    console.log('User found:', user.email, 'with role:', user.role);
+    console.log('✅ User found:', user.email, 'with role:', user.role);
 
     if (user.role !== role) {
-      console.log('Role mismatch: requested', role, 'but user is', user.role);
+      console.log('❌ Role mismatch: requested', role, 'but user is', user.role);
       return sendResponse(res, 401, {
         type: 'ROLE_MISMATCH',
         message: `This email is registered as a ${user.role}, not a ${role}.`,
@@ -137,7 +137,7 @@ exports.login = async (req, res) => {
 
     const isPasswordValid = await User.verifyPassword(password, user.password);
     if (!isPasswordValid) {
-      console.log('Invalid password for user:', email);
+      console.log('❌ Invalid password for user:', email);
       return sendResponse(res, 401, {
         type: 'INVALID_PASSWORD',
         message: 'Incorrect password.',
@@ -146,7 +146,7 @@ exports.login = async (req, res) => {
     }
 
     const token = generateToken(user.id);
-    console.log('Login successful for user:', user.email, 'as', user.role);
+    console.log('✅ Login successful for user:', user.email, 'as', user.role);
 
     sendResponse(res, 200, 'Login successful', {
       user: {
@@ -154,13 +154,13 @@ exports.login = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        is_verified: user.is_verified
+        is_verified: user.is_verified || false // FIX: Added fallback
       },
       token
     });
     
   } catch (error) {
-    console.error('Login error details:', error);
+    console.error('❌ Login error details:', error);
     sendResponse(res, 500, {
       type: 'SERVER_ERROR',
       message: 'Login failed due to server error',
@@ -171,18 +171,22 @@ exports.login = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
+    console.log('🟡 Get profile request for user ID:', req.userId);
+    
     const user = await User.findById(req.userId);
     if (!user) {
+      console.log('❌ User not found for ID:', req.userId);
       return sendResponse(res, 404, {
         type: 'USER_NOT_FOUND',
         message: 'User not found'
       }, null, false);
     }
 
+    console.log('✅ Profile retrieved for user:', user.email);
     sendResponse(res, 200, 'Profile retrieved successfully', { user });
     
   } catch (error) {
-    console.error('Get profile error:', error);
+    console.error('❌ Get profile error:', error);
     sendResponse(res, 500, {
       type: 'SERVER_ERROR',
       message: 'Failed to retrieve profile'
@@ -193,10 +197,14 @@ exports.getProfile = async (req, res) => {
 exports.verifyEmail = async (req, res) => {
   try {
     const { userId } = req;
+    console.log('🟡 Email verification request for user ID:', userId);
+    
     await User.updateVerification(userId);
+    
+    console.log('✅ Email verified for user ID:', userId);
     sendResponse(res, 200, 'Email verified successfully');
   } catch (error) {
-    console.error('Email verification error:', error);
+    console.error('❌ Email verification error:', error);
     sendResponse(res, 500, {
       type: 'SERVER_ERROR',
       message: 'Email verification failed'
@@ -206,23 +214,53 @@ exports.verifyEmail = async (req, res) => {
 
 exports.health = async (req, res) => {
   try {
+    console.log('🟡 Health check requested');
+    
     const testResult = await User.testConnection();
     if (!testResult) {
+      console.log('❌ Database connection failed');
       return sendResponse(res, 500, {
         type: 'DATABASE_ERROR',
         message: 'Database connection failed'
       }, null, false);
     }
     
+    console.log('✅ Health check passed');
     sendResponse(res, 200, 'Server and database are healthy', {
       database: 'connected',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Health check error:', error);
+    console.error('❌ Health check error:', error);
     sendResponse(res, 500, {
       type: 'SERVER_ERROR',
       message: 'Health check failed'
+    }, null, false);
+  }
+};
+
+// NEW: Add this method to check if user is authenticated
+exports.getCurrentUser = async (req, res) => {
+  try {
+    console.log('🟡 Get current user request for ID:', req.userId);
+    
+    const user = await User.findById(req.userId);
+    if (!user) {
+      console.log('❌ Current user not found for ID:', req.userId);
+      return sendResponse(res, 404, {
+        type: 'USER_NOT_FOUND',
+        message: 'User not found'
+      }, null, false);
+    }
+
+    console.log('✅ Current user retrieved:', user.email);
+    sendResponse(res, 200, 'Current user retrieved successfully', { user });
+    
+  } catch (error) {
+    console.error('❌ Get current user error:', error);
+    sendResponse(res, 500, {
+      type: 'SERVER_ERROR',
+      message: 'Failed to retrieve current user'
     }, null, false);
   }
 };

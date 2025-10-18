@@ -56,8 +56,9 @@ const VideoUploadModal = ({ courseId, isOpen, onClose, onVideoAdded }) => {
       console.log('Uploading video to Cloudinary...');
       const uploadResponse = await videoService.uploadVideo(videoFile);
       
-      if (!uploadResponse.success) {
-        throw new Error(uploadResponse.message || 'Upload failed');
+      // FIXED: Check for video data directly instead of uploadResponse.success
+      if (!uploadResponse || !uploadResponse.video) {
+        throw new Error(uploadResponse?.message || 'Upload failed - no video data received');
       }
 
       console.log('Cloudinary upload successful:', uploadResponse.video);
@@ -75,13 +76,14 @@ const VideoUploadModal = ({ courseId, isOpen, onClose, onVideoAdded }) => {
       console.log('Adding video content to course:', contentData);
       const contentResponse = await courseService.addVideoContent(courseId, contentData);
 
-      if (contentResponse.success) {
+      // FIXED: Check for content data directly instead of contentResponse.success
+      if (contentResponse && contentResponse.content) {
         console.log('Video content added successfully:', contentResponse.content);
         onVideoAdded(contentResponse.content);
         resetForm();
         onClose();
       } else {
-        throw new Error(contentResponse.message || 'Failed to add video content');
+        throw new Error(contentResponse?.message || 'Failed to add video content');
       }
 
     } catch (error) {

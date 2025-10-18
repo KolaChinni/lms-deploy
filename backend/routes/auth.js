@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const auth = require('../middleware/auth'); // Import the middleware you just showed me
+const auth = require('../middleware/auth');
 
 // ========== DEBUG MIDDLEWARE ==========
 router.use((req, res, next) => {
@@ -11,7 +11,7 @@ router.use((req, res, next) => {
 
 // ========== PUBLIC AUTH ROUTES (no auth required) ==========
 router.post('/register', authController.register);
-router.post('/login', authController.login);
+router.post('/login', authController.login);  // NO auth middleware here!
 router.get('/health', authController.health);
 
 // ========== TEST ROUTE ==========

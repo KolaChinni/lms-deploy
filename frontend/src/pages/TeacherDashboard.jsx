@@ -19,23 +19,27 @@ const TeacherDashboard = () => {
         courseService.getTeacherCourses()
       ])
 
-      setCourses(coursesResponse.data.courses)
+      console.log('📊 Teacher courses response:', coursesResponse)
+
+      // FIXED: Use coursesResponse.courses instead of coursesResponse.data.courses
+      const teacherCourses = coursesResponse.courses || []
+      setCourses(teacherCourses)
       
       // Calculate stats
-      const totalStudents = coursesResponse.data.courses.reduce(
+      const totalStudents = teacherCourses.reduce(
         (sum, course) => sum + (course.student_count || 0), 0
       )
       
       setStats({
-        totalCourses: coursesResponse.data.courses.length,
+        totalCourses: teacherCourses.length,
         totalStudents,
-        averageStudents: coursesResponse.data.courses.length > 0 
-          ? Math.round(totalStudents / coursesResponse.data.courses.length) 
+        averageStudents: teacherCourses.length > 0 
+          ? Math.round(totalStudents / teacherCourses.length) 
           : 0
       })
 
     } catch (error) {
-      console.error('Failed to load teacher dashboard:', error)
+      console.error('❌ Failed to load teacher dashboard:', error)
     } finally {
       setLoading(false)
     }

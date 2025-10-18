@@ -11,22 +11,30 @@ class Course {
         throw new Error('Title, description, and teacher ID are required');
       }
 
+      console.log('📝 Creating course with data:', { title, description, duration, teacher_id });
+
       const result = await executeQuery(
         `INSERT INTO courses (title, description, duration, teacher_id, created_at) 
-         VALUES ($1, $2, $3, $4, NOW())`,
+         VALUES ($1, $2, $3, $4, NOW()) RETURNING id, title, description, duration, teacher_id, created_at`,
         [title.trim(), description.trim(), duration || null, teacher_id]
       );
 
-      return { 
-        id: result[0].id, 
-        title: title.trim(), 
-        description: description.trim(), 
-        duration,
-        teacher_id,
-        created_at: new Date()
-      };
+      console.log('📝 Course creation result:', result);
+
+      // FIX: Check if we got a valid result
+      if (!result) {
+        throw new Error('Database query returned undefined result');
+      }
+
+      if (Array.isArray(result) && result.length > 0) {
+        return result[0]; // Return the first element if it's an array
+      } else if (result && result.id) {
+        return result; // Return directly if it's an object with id
+      } else {
+        throw new Error('Failed to create course: No valid ID returned from database');
+      }
     } catch (error) {
-      console.error('Course creation error:', error);
+      console.error('❌ Course creation error:', error);
       throw error;
     }
   }
@@ -62,7 +70,11 @@ class Course {
         JOIN users u ON c.teacher_id = u.id
         WHERE c.id = $1
       `, [id]);
-      return rows[0] || null;
+      
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows[0];
+      }
+      return null;
     } catch (error) {
       console.error('Find course by ID error:', error);
       throw error;
@@ -93,25 +105,25 @@ class Course {
       const result = await executeQuery(
         `UPDATE courses 
          SET title = $1, description = $2, duration = $3, is_published = $4, updated_at = NOW()
-         WHERE id = $5 AND teacher_id = $6`,
+         WHERE id = $5 AND teacher_id = $6
+         RETURNING *`,
         [title, description, duration, is_published, courseId, teacherId]
       );
 
-      return result.rowCount > 0;
+      return result && result.rowCount > 0;
     } catch (error) {
       console.error('Course update error:', error);
       throw error;
     }
   }
 
-  // FIXED: Remove teacherId parameter to match controller call
   static async delete(courseId) {
     try {
       const result = await executeQuery(
         'DELETE FROM courses WHERE id = $1',
         [courseId]
       );
-      return result.rowCount > 0;
+      return result && result.rowCount > 0;
     } catch (error) {
       console.error('Course deletion error:', error);
       throw error;
@@ -124,14 +136,13 @@ class Course {
         'SELECT id FROM courses WHERE id = $1 AND teacher_id = $2',
         [courseId, teacherId]
       );
-      return rows.length > 0;
+      return Array.isArray(rows) ? rows.length > 0 : false;
     } catch (error) {
       console.error('Check course ownership error:', error);
       throw error;
     }
   }
 
-  // NEW: Enhanced method to get course with enrollment status
   static async getCourseWithEnrollmentStatus(courseId, userId) {
     try {
       const course = await this.findById(courseId);
@@ -144,6 +155,35 @@ class Course {
       };
     } catch (error) {
       console.error('Get course with enrollment status error:', error);
+      throw error;
+    }
+  }
+
+  // NEW: Method to get course content
+  static async getCourseContent(courseId) {
+    try {
+      const content = await executeQuery(`
+        SELECT * FROM course_content 
+        WHERE course_id = $1 
+        ORDER BY created_at ASC
+      `, [courseId]);
+      return content || [];
+    } catch (error) {
+      console.error('Get course content error:', error);
+      throw error;
+    }
+  }
+
+  // NEW: Method to check if user is enrolled in course
+  static async isUserEnrolled(courseId, userId) {
+    try {
+      const enrollment = await executeQuery(
+        'SELECT * FROM enrollments WHERE course_id = $1 AND student_id = $2',
+        [courseId, userId]
+      );
+      return Array.isArray(enrollment) ? enrollment.length > 0 : false;
+    } catch (error) {
+      console.error('Check user enrollment error:', error);
       throw error;
     }
   }

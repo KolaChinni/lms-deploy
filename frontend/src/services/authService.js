@@ -3,22 +3,35 @@ import api from './api'
 export const authService = {
   async register(userData) {
     try {
+      console.log('🔵 authService: Sending registration request...', userData)
       const response = await api.post('/auth/register', userData)
+      console.log('🟢 authService: Registration success:', response.data)
       return response.data
     } catch (error) {
+      console.log('🔴 authService: Raw error object:', error)
+      console.log('🔴 authService: Error response exists?', !!error.response)
+      console.log('🔴 authService: Error response data:', error.response?.data)
+      
       // If error is already structured from api.js, throw it as-is
       if (error && error.type) {
+        console.log('🟡 authService: Already structured error type:', error.type)
         throw error
       }
       
       const errorData = error.response?.data
+      console.log('🟡 authService: Processing error data:', errorData)
       
-      // Handle backend error format
-      if (errorData?.success === false) {
+      // Handle backend error format - FIXED VERSION
+      if (errorData && errorData.success === false) {
+        console.log('🟡 authService: Backend error detected')
+        
+        // Check if errorData has errorData property (nested structure)
         if (errorData.errorData && errorData.errorData.type) {
           const errorType = errorData.errorData.type
+          console.log('🟡 authService: Backend error type:', errorType)
           
           if (errorType === 'USER_EXISTS') {
+            console.log('🟡 authService: Throwing USER_EXISTS error')
             throw {
               type: 'USER_EXISTS',
               message: errorData.errorData.message,
@@ -34,7 +47,8 @@ export const authService = {
           }
         }
         
-        // Fallback to main message
+        // If no nested errorData, use the main message
+        console.log('🟡 authService: Using main error message')
         throw {
           type: 'REGISTRATION_ERROR',
           message: errorData.message || 'Registration failed',
@@ -42,8 +56,9 @@ export const authService = {
         }
       }
       
-      // Handle network errors
+      // Handle network errors (no response at all)
       if (!error.response) {
+        console.log('🔴 authService: No response - real network error')
         throw {
           type: 'NETWORK_ERROR',
           message: 'Unable to connect to the server.',
@@ -51,7 +66,8 @@ export const authService = {
         }
       }
       
-      // Fallback error
+      // Fallback error for any other case
+      console.log('🔴 authService: Fallback error - unknown response format')
       throw {
         type: 'UNKNOWN_ERROR',
         message: 'Registration failed. Please try again.'

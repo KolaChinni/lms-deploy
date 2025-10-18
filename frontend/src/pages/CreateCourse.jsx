@@ -58,23 +58,32 @@ const CreateCourse = () => {
       const response = await courseService.createCourse(formData)
       console.log('✅ Course creation response:', response)
       
-      // FIXED: Use response.course instead of response.data.course
-      if (response && response.course) {
+      // FIXED: Use response.data.course based on your backend response format
+      if (response && response.data && response.data.course) {
         alert('Course created successfully!')
-        navigate(`/teacher/courses/${response.course.id}/manage`)
+        navigate(`/teacher/courses/${response.data.course.id}/manage`)
       } else {
-        throw new Error('Invalid response from server')
+        // Fallback: Try to find course data in different response formats
+        const course = response.data?.course || response.course || response
+        if (course && course.id) {
+          alert('Course created successfully!')
+          navigate(`/teacher/courses/${course.id}/manage`)
+        } else {
+          throw new Error('Invalid response from server: No course data received')
+        }
       }
     } catch (error) {
       console.error('❌ Failed to create course:', error)
       
-      // FIXED: Better error handling
-      if (error.message) {
-        alert(error.message)
-      } else if (error.response?.data?.message) {
+      // Enhanced error handling for different error formats
+      if (error.response?.data?.message) {
         alert(error.response.data.message)
+      } else if (error.data?.message) {
+        alert(error.data.message)
+      } else if (error.message) {
+        alert(error.message)
       } else {
-        alert('Failed to create course. Please try again.')
+        alert('Failed to create course. Please check your connection and try again.')
       }
     } finally {
       setLoading(false)

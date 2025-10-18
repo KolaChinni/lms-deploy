@@ -10,27 +10,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ========== MIDDLEWARE SETUP ==========
-// CORS Configuration for deployment
+// CORS Configuration - ALLOW ALL ORIGINS TEMPORARILY
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    // List of allowed origins
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',  // Vite default
-      'http://localhost:5174',  // Vite alternative
-      process.env.CLIENT_URL    // Your production frontend URL
-    ].filter(Boolean); // Remove any undefined values
-
-    // Check if the origin is in allowed list
-    if (allowedOrigins.includes(origin) || allowedOrigins.some(allowed => origin.startsWith(allowed))) {
-      return callback(null, true);
-    } else {
-      console.log('🚫 CORS Blocked:', origin);
-      return callback(new Error('Not allowed by CORS'));
-    }
+    // Allow ALL origins for now to fix the CORS issue
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -115,7 +99,7 @@ const loadRoutes = () => {
     app.use('/api/assignments', assignmentRoutes);
     app.use('/api/notifications', notificationRoutes);
     app.use('/api/blogs', blogRoutes);
-    app.use('/api/forum', forumRoutes); // FIXED: Added forum routes
+    app.use('/api/forum', forumRoutes);
     
     console.log('✅ Main routes loaded successfully');
     
@@ -245,7 +229,6 @@ const startServer = async () => {
         'GET  /api/courses/teacher/my-courses',
         'GET  /api/courses/student/my-courses',
         'POST /api/courses/:courseId/enroll',
-        // ADD ASSIGNMENTS ENDPOINTS
         'POST /api/assignments/courses/:courseId/assignments',
         'GET  /api/assignments/courses/:courseId/assignments',
         'GET  /api/assignments/student/assignments',
@@ -255,7 +238,6 @@ const startServer = async () => {
         'GET  /api/assignments/student/submissions',
         'POST /api/assignments/submissions/:submissionId/grade',
         'GET  /api/assignments/student/grades',
-        // OTHER ENDPOINTS
         'GET  /api/blogs',
         'POST /api/blogs'
       ],

@@ -57,7 +57,7 @@ exports.createCourse = async (req, res) => {
       teacher_id
     });
 
-    console.log('✅ Course created successfully:', course.id);
+    console.log('✅ Course created successfully:', course);
     sendResponse(res, 201, 'Course created successfully', { course });
   } catch (error) {
     console.error('❌ Create course error:', error);
@@ -288,11 +288,11 @@ exports.addVideoContent = async (req, res) => {
       order_index: order_index || 0
     });
 
-    console.log('Video content created successfully:', content.id);
+    console.log('✅ Video content created successfully:', content);
 
     sendResponse(res, 201, 'Video content added successfully', { content });
   } catch (error) {
-    console.error('Add video content error:', error);
+    console.error('❌ Add video content error:', error);
     sendResponse(res, 500, 'Failed to add video content', null, false);
   }
 };

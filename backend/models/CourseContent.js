@@ -26,10 +26,13 @@ class CourseContent {
         throw new Error('Video URL is required for video content');
       }
 
+      console.log('📝 Creating course content with data:', contentData);
+
       const result = await executeQuery(
         `INSERT INTO course_content 
          (course_id, title, description, content_type, video_url, video_public_id, video_duration, document_url, duration, display_order, is_published) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING *`,
         [
           course_id, 
           title.trim(), 
@@ -45,25 +48,24 @@ class CourseContent {
         ]
       );
 
-      console.log('Course content created with ID:', result[0].id);
+      console.log('📝 Course content creation result:', result);
 
-      return { 
-        id: result[0].id,
-        course_id,
-        title: title.trim(),
-        description: description?.trim(),
-        content_type,
-        video_url,
-        video_public_id,
-        video_duration,
-        document_url,
-        duration,
-        order_index: order_index || 0,
-        is_published,
-        created_at: new Date()
-      };
+      // FIX: Handle the result properly
+      if (!result) {
+        throw new Error('Database query returned undefined result');
+      }
+
+      if (Array.isArray(result) && result.length > 0) {
+        console.log('✅ Course content created with ID:', result[0].id);
+        return result[0];
+      } else if (result && result.id) {
+        console.log('✅ Course content created with ID:', result.id);
+        return result;
+      } else {
+        throw new Error('Failed to create course content: No valid ID returned from database');
+      }
     } catch (error) {
-      console.error('Course content creation error:', error);
+      console.error('❌ Course content creation error:', error);
       throw error;
     }
   }
@@ -93,9 +95,9 @@ class CourseContent {
         ORDER BY display_order ASC, created_at ASC
       `, [courseId]);
       
-      console.log(`Found ${rows.length} content items for course ${courseId}`);
+      console.log(`Found ${rows ? rows.length : 0} content items for course ${courseId}`);
       console.log('Raw SQL results:', rows);
-      return rows;
+      return rows || [];
     } catch (error) {
       console.error('Find course content error:', error);
       throw error;
@@ -125,7 +127,7 @@ class CourseContent {
         ORDER BY display_order ASC, created_at ASC
       `, [courseId]);
       
-      return rows;
+      return rows || [];
     } catch (error) {
       console.error('Find published course content error:', error);
       throw error;
@@ -145,7 +147,7 @@ class CourseContent {
         WHERE cc.id = $1
       `, [contentId]);
       
-      const content = rows[0] || null;
+      const content = (Array.isArray(rows) && rows.length > 0) ? rows[0] : null;
       if (content) {
         console.log(`Found content ${contentId}:`, {
           id: content.id,
@@ -234,11 +236,11 @@ class CourseContent {
       const result = await executeQuery(query, updateValues);
 
       console.log(`Updated content ${contentId}:`, {
-        rowCount: result.rowCount,
+        rowCount: result ? result.rowCount : 0,
         updatedFields: updateFields
       });
 
-      return result.rowCount > 0;
+      return result ? result.rowCount > 0 : false;
     } catch (error) {
       console.error('Course content update error:', error);
       throw error;
@@ -256,14 +258,14 @@ class CourseContent {
       );
 
       console.log(`Deleted content ${contentId}:`, {
-        rowCount: result.rowCount,
+        rowCount: result ? result.rowCount : 0,
         wasVideo: content?.content_type === 'video',
         hadPublicId: !!content?.video_public_id
       });
 
       // Return both deletion result and content info for cleanup
       return {
-        success: result.rowCount > 0,
+        success: result ? result.rowCount > 0 : false,
         content: content
       };
     } catch (error) {
@@ -281,7 +283,7 @@ class CourseContent {
         WHERE cc.id = $1 AND c.teacher_id = $2
       `, [contentId, teacherId]);
       
-      const hasOwnership = rows.length > 0;
+      const hasOwnership = Array.isArray(rows) ? rows.length > 0 : false;
       console.log(`Content ownership check: content=${contentId}, teacher=${teacherId}, owned=${hasOwnership}`);
       
       return hasOwnership;
@@ -291,7 +293,6 @@ class CourseContent {
     }
   }
 
-  // New method to get only video content for a course
   static async findVideosByCourseId(courseId) {
     try {
       const rows = await executeQuery(`
@@ -311,15 +312,14 @@ class CourseContent {
         ORDER BY display_order ASC, created_at ASC
       `, [courseId]);
       
-      console.log(`Found ${rows.length} videos for course ${courseId}`);
-      return rows;
+      console.log(`Found ${rows ? rows.length : 0} videos for course ${courseId}`);
+      return rows || [];
     } catch (error) {
       console.error('Find videos by course error:', error);
       throw error;
     }
   }
 
-  // New method to update video-specific fields
   static async updateVideoInfo(contentId, videoData) {
     try {
       const { video_url, video_public_id, video_duration } = videoData;
@@ -332,20 +332,19 @@ class CourseContent {
       );
 
       console.log(`Updated video info for content ${contentId}:`, {
-        rowCount: result.rowCount,
+        rowCount: result ? result.rowCount : 0,
         video_url: !!video_url,
         video_public_id: !!video_public_id,
         video_duration: video_duration
       });
 
-      return result.rowCount > 0;
+      return result ? result.rowCount > 0 : false;
     } catch (error) {
       console.error('Update video info error:', error);
       throw error;
     }
   }
 
-  // New method to get content with video information
   static async getContentWithVideos(courseId) {
     try {
       const rows = await executeQuery(`
@@ -360,14 +359,13 @@ class CourseContent {
         ORDER BY cc.display_order ASC
       `, [courseId]);
       
-      return rows;
+      return rows || [];
     } catch (error) {
       console.error('Get content with videos error:', error);
       throw error;
     }
   }
 
-  // New method to update content order
   static async updateContentOrder(contentId, orderIndex) {
     try {
       const result = await executeQuery(
@@ -375,14 +373,13 @@ class CourseContent {
         [orderIndex, contentId]
       );
 
-      return result.rowCount > 0;
+      return result ? result.rowCount > 0 : false;
     } catch (error) {
       console.error('Update content order error:', error);
       throw error;
     }
   }
 
-  // New method to get content statistics
   static async getContentStats(courseId) {
     try {
       const rows = await executeQuery(`
@@ -401,13 +398,15 @@ class CourseContent {
         totalVideoDuration: 0
       };
       
-      rows.forEach(row => {
-        stats.total += row.count;
-        stats.byType[row.content_type] = row.count;
-        if (row.content_type === 'video') {
-          stats.totalVideoDuration = row.total_video_duration || 0;
-        }
-      });
+      if (Array.isArray(rows)) {
+        rows.forEach(row => {
+          stats.total += row.count;
+          stats.byType[row.content_type] = row.count;
+          if (row.content_type === 'video') {
+            stats.totalVideoDuration = row.total_video_duration || 0;
+          }
+        });
+      }
       
       return stats;
     } catch (error) {

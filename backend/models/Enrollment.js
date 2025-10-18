@@ -8,13 +8,15 @@ class Enrollment {
         throw new Error('Student ID and Course ID are required');
       }
 
+      console.log('📝 Enrolling student:', studentId, 'in course:', courseId);
+
       // Add validation for student and course existence
       const [student, course] = await Promise.all([
         executeQuery('SELECT id, name, role FROM users WHERE id = $1', [studentId]),
-        executeQuery('SELECT id, title, is_published FROM courses WHERE id = $1', [courseId]) // REMOVED max_students
+        executeQuery('SELECT id, title, is_published FROM courses WHERE id = $1', [courseId])
       ]);
 
-      if (student.length === 0) {
+      if (!student || student.length === 0) {
         throw new Error('Student not found');
       }
 
@@ -22,7 +24,7 @@ class Enrollment {
         throw new Error('Only students can enroll in courses');
       }
 
-      if (course.length === 0) {
+      if (!course || course.length === 0) {
         throw new Error('Course not found');
       }
 
@@ -30,26 +32,42 @@ class Enrollment {
         throw new Error('Course is not available for enrollment');
       }
 
-      // REMOVED the course capacity check since max_students column doesn't exist
-
       // Check if already enrolled
       const existing = await executeQuery(
         'SELECT id FROM enrollments WHERE student_id = $1 AND course_id = $2',
         [studentId, courseId]
       );
 
-      if (existing.length > 0) {
+      if (existing && existing.length > 0) {
         throw new Error('Student is already enrolled in this course');
       }
 
       // Create new enrollment
       const result = await executeQuery(
-        'INSERT INTO enrollments (student_id, course_id, enrolled_at) VALUES ($1, $2, NOW())',
+        'INSERT INTO enrollments (student_id, course_id, enrolled_at) VALUES ($1, $2, NOW()) RETURNING *',
         [studentId, courseId]
       );
 
+      console.log('📝 Enrollment creation result:', result);
+
+      // FIX: Handle the result properly
+      if (!result) {
+        throw new Error('Database query returned undefined result');
+      }
+
+      let enrollment;
+      if (Array.isArray(result) && result.length > 0) {
+        enrollment = result[0];
+      } else if (result && result.id) {
+        enrollment = result;
+      } else {
+        throw new Error('Failed to create enrollment: No valid ID returned from database');
+      }
+
+      console.log('✅ Enrollment created successfully:', enrollment.id);
+
       return { 
-        id: result[0].id, 
+        id: enrollment.id, 
         student_id: studentId, 
         course_id: courseId,
         enrolled_at: new Date(),
@@ -57,7 +75,7 @@ class Enrollment {
         student_name: student[0].name
       };
     } catch (error) {
-      console.error('Enrollment error:', error);
+      console.error('❌ Enrollment error:', error);
       throw error;
     }
   }
@@ -78,7 +96,7 @@ class Enrollment {
         WHERE e.student_id = $1
         ORDER BY e.enrolled_at DESC
       `, [studentId]);
-      return rows;
+      return rows || [];
     } catch (error) {
       console.error('Find enrollments by student error:', error);
       throw error;
@@ -97,7 +115,7 @@ class Enrollment {
         WHERE e.course_id = $1
         ORDER BY e.enrolled_at DESC
       `, [courseId]);
-      return rows;
+      return rows || [];
     } catch (error) {
       console.error('Find enrollments by course error:', error);
       throw error;
@@ -110,7 +128,7 @@ class Enrollment {
         'SELECT id FROM enrollments WHERE student_id = $1 AND course_id = $2',
         [studentId, courseId]
       );
-      return rows.length > 0;
+      return Array.isArray(rows) ? rows.length > 0 : false;
     } catch (error) {
       console.error('Check enrollment error:', error);
       throw error;
@@ -123,7 +141,7 @@ class Enrollment {
         'SELECT COUNT(*) as count FROM enrollments WHERE course_id = $1',
         [courseId]
       );
-      return rows[0].count;
+      return (Array.isArray(rows) && rows.length > 0) ? rows[0].count : 0;
     } catch (error) {
       console.error('Get enrollment count error:', error);
       throw error;
@@ -138,11 +156,11 @@ class Enrollment {
       }
 
       const result = await executeQuery(
-        'UPDATE enrollments SET status = $1 WHERE id = $2',
+        'UPDATE enrollments SET status = $1 WHERE id = $2 RETURNING *',
         [status, enrollmentId]
       );
 
-      if (result.rowCount === 0) {
+      if (!result || (Array.isArray(result) && result.length === 0)) {
         throw new Error('Enrollment not found');
       }
 
@@ -168,7 +186,7 @@ class Enrollment {
         WHERE e.id = $1
       `, [enrollmentId]);
       
-      return rows.length > 0 ? rows[0] : null;
+      return (Array.isArray(rows) && rows.length > 0) ? rows[0] : null;
     } catch (error) {
       console.error('Get enrollment by ID error:', error);
       throw error;
@@ -188,7 +206,7 @@ class Enrollment {
         WHERE e.student_id = $2 AND e.course_id = $3
       `, [courseId, studentId, courseId]);
       
-      return rows.length > 0 ? rows[0] : null;
+      return (Array.isArray(rows) && rows.length > 0) ? rows[0] : null;
     } catch (error) {
       console.error('Get student progress error:', error);
       throw error;
@@ -202,7 +220,7 @@ class Enrollment {
         'SELECT id FROM enrollments WHERE course_id = $1 AND student_id = $2',
         [courseId, studentId]
       );
-      return rows.length > 0;
+      return Array.isArray(rows) ? rows.length > 0 : false;
     } catch (error) {
       console.error('Check student enrollment error:', error);
       throw error;

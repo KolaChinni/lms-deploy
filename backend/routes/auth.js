@@ -1,30 +1,26 @@
-const express = require('express');
-const router = express.Router();
-const authController = require('../controllers/authController');
+const jwt = require('jsonwebtoken');
 
-// ========== DEBUG MIDDLEWARE ==========
-router.use((req, res, next) => {
-  console.log(`🟡 Auth Route Called: ${req.method} ${req.originalUrl}`);
-  next();
-});
+const auth = (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided, authorization denied'
+      });
+    }
 
-// ========== AUTH ROUTES ==========
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.get('/profile', authController.getProfile);
-router.post('/verify-email', authController.verifyEmail);
-router.get('/health', authController.health);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.userId;
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Token is not valid'
+    });
+  }
+};
 
-// ========== TEST ROUTE ==========
-router.get('/test', (req, res) => {
-  console.log('✅ GET /api/auth/test - Working!');
-  res.json({
-    success: true,
-    message: '🎉 Auth routes are working!',
-    timestamp: new Date().toISOString()
-  });
-});
-
-console.log('✅ Auth routes loaded with actual controllers');
-
-module.exports = router;
+module.exports = auth;

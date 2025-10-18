@@ -54,12 +54,28 @@ const CreateCourse = () => {
 
     setLoading(true)
     try {
+      console.log('📝 Creating course with data:', formData)
       const response = await courseService.createCourse(formData)
-      alert('Course created successfully!')
-      navigate(`/teacher/courses/${response.data.course.id}/manage`)
+      console.log('✅ Course creation response:', response)
+      
+      // FIXED: Use response.course instead of response.data.course
+      if (response && response.course) {
+        alert('Course created successfully!')
+        navigate(`/teacher/courses/${response.course.id}/manage`)
+      } else {
+        throw new Error('Invalid response from server')
+      }
     } catch (error) {
-      console.error('Failed to create course:', error)
-      alert(error.response?.data?.message || 'Failed to create course')
+      console.error('❌ Failed to create course:', error)
+      
+      // FIXED: Better error handling
+      if (error.message) {
+        alert(error.message)
+      } else if (error.response?.data?.message) {
+        alert(error.response.data.message)
+      } else {
+        alert('Failed to create course. Please try again.')
+      }
     } finally {
       setLoading(false)
     }

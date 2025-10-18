@@ -47,7 +47,7 @@ const VideoUploadModal = ({ courseId, isOpen, onClose, onVideoAdded }) => {
     }
 
     setLoading(true);
-    setError('');
+    setError(''); // Clear error at start
 
     try {
       console.log('Starting video upload process...');
@@ -79,6 +79,7 @@ const VideoUploadModal = ({ courseId, isOpen, onClose, onVideoAdded }) => {
       // FIXED: Check for content data directly instead of contentResponse.success
       if (contentResponse && contentResponse.content) {
         console.log('Video content added successfully:', contentResponse.content);
+        setError(''); // Clear any previous errors
         onVideoAdded(contentResponse.content);
         resetForm();
         onClose();

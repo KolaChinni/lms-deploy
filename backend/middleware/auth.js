@@ -15,9 +15,9 @@ const auth = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Check if user still exists - FIXED for MySQL
+    // Check if user still exists - FIXED for PostgreSQL
     const user = await executeQuery(
-      'SELECT id, name, email, role, is_verified FROM users WHERE id = ?', 
+      'SELECT id, name, email, role, is_verified FROM users WHERE id = $1', 
       [decoded.userId]
     );
     

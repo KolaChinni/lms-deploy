@@ -9,25 +9,37 @@ class Assignment {
         throw new Error('Course ID, title, and max points are required');
       }
 
+      console.log('📝 Creating assignment with data:', assignmentData);
+
       const result = await executeQuery(
         `INSERT INTO assignments 
          (course_id, title, description, due_date, max_points, assignment_type, created_at) 
-         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         RETURNING *`,
         [course_id, title.trim(), description?.trim(), due_date, max_points, assignment_type || 'assignment']
       );
 
-      return { 
-        id: result[0].id,
-        course_id,
-        title: title.trim(),
-        description: description?.trim(),
-        due_date,
-        max_points,
-        assignment_type: assignment_type || 'assignment',
-        created_at: new Date()
-      };
+      console.log('📝 Assignment creation result:', result);
+
+      // FIXED: Handle the result properly
+      if (!result) {
+        throw new Error('Database query returned undefined result');
+      }
+
+      let assignment;
+      if (Array.isArray(result) && result.length > 0) {
+        assignment = result[0];
+      } else if (result && result.id) {
+        assignment = result;
+      } else {
+        throw new Error('Failed to create assignment: No valid ID returned from database');
+      }
+
+      console.log('✅ Assignment created successfully with ID:', assignment.id);
+
+      return assignment;
     } catch (error) {
-      console.error('Assignment creation error:', error);
+      console.error('❌ Assignment creation error:', error);
       throw error;
     }
   }
@@ -39,7 +51,7 @@ class Assignment {
         WHERE course_id = $1
         ORDER BY created_at DESC
       `, [courseId]);
-      return rows;
+      return rows || [];
     } catch (error) {
       console.error('Find assignments by course error:', error);
       throw error;
@@ -54,7 +66,7 @@ class Assignment {
         JOIN courses c ON a.course_id = c.id
         WHERE a.id = $1
       `, [assignmentId]);
-      return rows[0] || null;
+      return (Array.isArray(rows) && rows.length > 0) ? rows[0] : null;
     } catch (error) {
       console.error('Find assignment by ID error:', error);
       throw error;
@@ -82,7 +94,7 @@ class Assignment {
         AND c.is_published = TRUE
         ORDER BY a.due_date ASC, a.created_at DESC
       `, [studentId, studentId, studentId, studentId, studentId]);
-      return rows;
+      return rows || [];
     } catch (error) {
       console.error('Find assignments by student enrolled courses error:', error);
       throw error;
@@ -96,11 +108,12 @@ class Assignment {
       const result = await executeQuery(
         `UPDATE assignments 
          SET title = $1, description = $2, due_date = $3, max_points = $4, assignment_type = $5, updated_at = NOW()
-         WHERE id = $6`,
+         WHERE id = $6
+         RETURNING *`,
         [title, description, due_date, max_points, assignment_type, assignmentId]
       );
 
-      return result.rowCount > 0;
+      return result ? (Array.isArray(result) ? result.length > 0 : !!result.id) : false;
     } catch (error) {
       console.error('Assignment update error:', error);
       throw error;
@@ -113,7 +126,7 @@ class Assignment {
         'DELETE FROM assignments WHERE id = $1',
         [assignmentId]
       );
-      return result.rowCount > 0;
+      return result ? result.rowCount > 0 : false;
     } catch (error) {
       console.error('Assignment deletion error:', error);
       throw error;

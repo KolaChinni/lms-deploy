@@ -71,10 +71,10 @@ const Login = () => {
       const response = await authService.login(loginData)
       console.log('2. Login API response:', response)
       
-      // IMPORTANT: Check if response structure is correct
-      if (response && response.data) {
+      // FIXED: Check for response.user instead of response.data.user
+      if (response && response.user) {
         console.log('3. Calling authContext login...')
-        await login(response.data.user, response.data.token)
+        await login(response.user, response.token)
         console.log('4. AuthContext login completed')
         
         // Redirect to dashboard

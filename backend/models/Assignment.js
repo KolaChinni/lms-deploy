@@ -1,3 +1,4 @@
+
 const { executeQuery } = require('../config/database');
 
 class Assignment {

@@ -14,12 +14,12 @@ export const videoService = {
         timeout: 300000, // 5 minutes timeout for large videos
       });
 
-      return response.data;
+      return response; // FIXED: Remove .data
     } catch (error) {
       console.error('Video upload error:', error);
       throw {
         type: 'UPLOAD_ERROR',
-        message: error.response?.data?.message || 'Failed to upload video',
+        message: error.message || 'Failed to upload video',
         suggestion: 'Please check your internet connection and try again.'
       };
     }
@@ -29,12 +29,12 @@ export const videoService = {
   async addVideoContent(contentData) {
     try {
       const response = await api.post('/videos/content', contentData);
-      return response.data;
+      return response; // FIXED: Remove .data
     } catch (error) {
       console.error('Add video content error:', error);
       throw {
         type: 'CONTENT_ERROR',
-        message: error.response?.data?.message || 'Failed to add video content',
+        message: error.message || 'Failed to add video content',
         suggestion: 'Please check your data and try again.'
       };
     }
@@ -44,12 +44,12 @@ export const videoService = {
   async getCourseVideos(courseId) {
     try {
       const response = await api.get(`/videos/course/${courseId}`);
-      return response.data;
+      return response; // FIXED: Remove .data
     } catch (error) {
       console.error('Get course videos error:', error);
       throw {
         type: 'FETCH_ERROR',
-        message: error.response?.data?.message || 'Failed to fetch course videos',
+        message: error.message || 'Failed to fetch course videos',
         suggestion: 'Please try again later.'
       };
     }
@@ -59,12 +59,12 @@ export const videoService = {
   async deleteVideoContent(contentId) {
     try {
       const response = await api.delete(`/videos/content/${contentId}`);
-      return response.data;
+      return response; // FIXED: Remove .data
     } catch (error) {
       console.error('Delete video content error:', error);
       throw {
         type: 'DELETE_ERROR',
-        message: error.response?.data?.message || 'Failed to delete video content',
+        message: error.message || 'Failed to delete video content',
         suggestion: 'Please try again.'
       };
     }

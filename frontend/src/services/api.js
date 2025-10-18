@@ -35,14 +35,16 @@ api.interceptors.request.use(
   }
 )
 
-// Response interceptor
+// Response interceptor - FIXED: Return response.data instead of full response
 api.interceptors.response.use(
   (response) => {
     // Only log in development
     if (import.meta.env.VITE_NODE_ENV === 'development') {
-      console.log(`🟢 API Response: ${response.status} ${response.config.url}`)
+      console.log(`🟢 API Response: ${response.status} ${response.config.url}`, response.data)
     }
-    return response
+    
+    // FIX: Return only the data part, not the entire Axios response
+    return response.data
   },
   (error) => {
     // Only log full errors in development
